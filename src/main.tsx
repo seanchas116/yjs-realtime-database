@@ -8,7 +8,15 @@ import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
 import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 import { Awareness } from "y-protocols/awareness";
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onChildAdded, push, get } from "firebase/database";
+import {
+  getDatabase,
+  ref,
+  onChildAdded,
+  push,
+  get,
+  runTransaction,
+  remove,
+} from "firebase/database";
 import { Buffer } from "buffer";
 import "./index.css";
 
@@ -61,6 +69,13 @@ window.addEventListener("load", () => {
         Buffer.from(updateBase64 as string, "base64")
       );
       Y.applyUpdate(ydoc, update);
+    }
+
+    // flush database (idea from y-leveldb)
+    const flushed = Y.encodeStateAsUpdate(ydoc);
+    push(ref(database, "doc"), Buffer.from(flushed).toString("base64"));
+    for (const key of Object.keys(snapshot.val())) {
+      remove(ref(database, `doc/${key}`));
     }
   });
 
