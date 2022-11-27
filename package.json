@@ -9,8 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "monaco-editor": "^0.34.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "y-monaco": "^0.1.4",
+    "y-protocols": "^1.0.5",
+    "yjs": "^13.5.42"
   },
   "devDependencies": {
     "@types/react": "^18.0.24",
