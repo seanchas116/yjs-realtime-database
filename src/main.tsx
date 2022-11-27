@@ -14,7 +14,6 @@ import {
   onChildAdded,
   push,
   get,
-  runTransaction,
   remove,
 } from "firebase/database";
 import { Buffer } from "buffer";
@@ -54,11 +53,6 @@ const database = getDatabase(app);
 
 window.addEventListener("load", () => {
   const ydoc = new Y.Doc();
-  // const provider = new WebsocketProvider(
-  //   "wss://demos.yjs.dev",
-  //   "monaco-demo",
-  //   ydoc
-  // );
   const ytext = ydoc.getText("monaco");
 
   const awareness = new Awareness(ydoc);
@@ -93,7 +87,7 @@ window.addEventListener("load", () => {
   });
 
   const editor = monaco.editor.create(
-    /** @type {HTMLElement} */ document.getElementById("monaco-editor")!,
+    document.getElementById("monaco-editor")!,
     {
       value: "",
       language: "javascript",
@@ -102,7 +96,7 @@ window.addEventListener("load", () => {
   );
   const monacoBinding = new MonacoBinding(
     ytext,
-    /** @type {monaco.editor.ITextModel} */ editor.getModel()!,
+    editor.getModel()!,
     new Set([editor]),
     awareness
   );
