@@ -15,6 +15,9 @@ import {
   push,
   get,
   remove,
+  query,
+  startAfter,
+  orderByKey,
 } from "firebase/database";
 import { Buffer } from "buffer";
 import "./index.css";
@@ -57,31 +60,69 @@ window.addEventListener("load", () => {
 
   const awareness = new Awareness(ydoc);
 
-  get(ref(database, "doc")).then((snapshot) => {
-    for (const updateBase64 of Object.values(snapshot.val())) {
-      const update = new Uint8Array(
-        Buffer.from(updateBase64 as string, "base64")
-      );
-      Y.applyUpdate(ydoc, update);
+  let duringRemoteUpdate = false;
+  const remoteUpdate = (action: () => void) => {
+    try {
+      duringRemoteUpdate = true;
+      action();
+    } finally {
+      duringRemoteUpdate = false;
     }
+  };
+
+  get(ref(database, "doc")).then((snapshot) => {
+    console.log("first read");
+
+    const data = snapshot.val() ?? {};
+
+    remoteUpdate(() => {
+      ydoc.transact(() => {
+        for (const updateBase64 of Object.values(data)) {
+          const update = new Uint8Array(
+            Buffer.from(updateBase64 as string, "base64")
+          );
+          Y.applyUpdate(ydoc, update);
+        }
+      });
+    });
 
     // flush database (idea from y-leveldb)
+
     const flushed = Y.encodeStateAsUpdate(ydoc);
     push(ref(database, "doc"), Buffer.from(flushed).toString("base64"));
-    for (const key of Object.keys(snapshot.val())) {
+    for (const key of Object.keys(data)) {
       remove(ref(database, `doc/${key}`));
     }
-  });
 
-  onChildAdded(ref(database, "doc"), (data) => {
-    const updateBase64 = data.val();
-    const update = new Uint8Array(
-      Buffer.from(updateBase64 as string, "base64")
+    // listen for new updates
+
+    const lastKey = Object.keys(data).pop();
+    onChildAdded(
+      lastKey
+        ? query(ref(database, "doc"), orderByKey(), startAfter(lastKey))
+        : ref(database, "doc"),
+      (snapshot) => {
+        console.log("child added");
+
+        const update = new Uint8Array(
+          Buffer.from(snapshot.val() as string, "base64")
+        );
+
+        remoteUpdate(() => {
+          Y.applyUpdate(ydoc, update);
+        });
+      }
     );
-    Y.applyUpdate(ydoc, update);
   });
 
   ydoc.on("update", (update: Uint8Array) => {
+    if (duringRemoteUpdate) {
+      return;
+    }
+    // only send local updates
+
+    console.log("update");
+
     const updateBase64 = Buffer.from(update).toString("base64");
     push(ref(database, "doc"), updateBase64);
   });
