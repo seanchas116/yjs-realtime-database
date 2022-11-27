@@ -107,18 +107,6 @@ window.addEventListener("load", () => {
     awareness
   );
 
-  const connectBtn =
-    /** @type {HTMLElement} */ document.getElementById("y-connect-btn")!;
-  connectBtn.addEventListener("click", () => {
-    // if (provider.shouldConnect) {
-    //   provider.disconnect();
-    //   connectBtn.textContent = "Connect";
-    // } else {
-    //   provider.connect();
-    //   connectBtn.textContent = "Disconnect";
-    // }
-  });
-
   // @ts-ignore
   window.example = { ydoc, ytext, monacoBinding };
 });
