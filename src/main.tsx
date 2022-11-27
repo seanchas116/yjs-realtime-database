@@ -56,7 +56,12 @@ window.addEventListener("load", () => {
   const awareness = new Awareness(ydoc);
 
   get(ref(database, "doc")).then((snapshot) => {
-    console.log(snapshot.val());
+    for (const updateBase64 of Object.values(snapshot.val())) {
+      const update = new Uint8Array(
+        Buffer.from(updateBase64 as string, "base64")
+      );
+      Y.applyUpdate(ydoc, update);
+    }
   });
 
   onChildAdded(ref(database, "doc"), (data) => {
