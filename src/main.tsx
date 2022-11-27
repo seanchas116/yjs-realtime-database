@@ -65,7 +65,11 @@ window.addEventListener("load", () => {
   });
 
   onChildAdded(ref(database, "doc"), (data) => {
-    //Y.applyUpdate(ydoc, data.val());
+    const updateBase64 = data.val();
+    const update = new Uint8Array(
+      Buffer.from(updateBase64 as string, "base64")
+    );
+    Y.applyUpdate(ydoc, update);
   });
 
   ydoc.on("update", (update: Uint8Array) => {
