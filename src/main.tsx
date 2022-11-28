@@ -6,7 +6,12 @@ import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import cssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
 import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
 import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
-import { Awareness } from "y-protocols/awareness";
+import {
+  applyAwarenessUpdate,
+  Awareness,
+  encodeAwarenessUpdate,
+  removeAwarenessStates,
+} from "y-protocols/awareness";
 import { initializeApp } from "firebase/app";
 import * as db from "firebase/database";
 import { Buffer } from "buffer";
@@ -119,6 +124,59 @@ window.addEventListener("load", () => {
 
     const updateBase64 = Buffer.from(update).toString("base64");
     db.push(db.ref(database, "doc"), updateBase64);
+  });
+
+  // awareness
+
+  awareness.on(
+    "update",
+    ({
+      added,
+      updated,
+      removed,
+    }: {
+      added: number[];
+      updated: number[];
+      removed: number[];
+    }) => {
+      console.log("update awareness");
+
+      for (const id of [...added, ...updated]) {
+        const data = encodeAwarenessUpdate(awareness, [id]);
+
+        db.set(
+          db.ref(database, `awareness/${id}`),
+          Buffer.from(data).toString("base64")
+        );
+      }
+      for (const id of removed) {
+        db.remove(db.ref(database, `awareness/${id}`));
+      }
+    }
+  );
+
+  db.onDisconnect(db.ref(database, `awareness/${awareness.clientID}`)).set(
+    null
+  );
+
+  db.onValue(db.ref(database, "awareness"), (snapshot) => {
+    console.log("awareness", snapshot.val());
+
+    const incomingIDs = new Set<number>();
+
+    for (const [idText, base64] of Object.entries(snapshot.val() ?? {})) {
+      const id = parseInt(idText);
+      const data = new Uint8Array(Buffer.from(base64 as string, "base64"));
+      applyAwarenessUpdate(awareness, data, id);
+      incomingIDs.add(id);
+    }
+
+    for (const id of awareness.getStates().keys()) {
+      if (!incomingIDs.has(id) && id !== awareness.clientID) {
+        console.log("remove", id);
+        removeAwarenessStates(awareness, [id], id);
+      }
+    }
   });
 
   const editor = monaco.editor.create(
