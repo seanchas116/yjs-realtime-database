@@ -8,17 +8,7 @@ import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
 import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 import { Awareness } from "y-protocols/awareness";
 import { initializeApp } from "firebase/app";
-import {
-  getDatabase,
-  ref,
-  onChildAdded,
-  push,
-  get,
-  remove,
-  query,
-  startAfter,
-  orderByKey,
-} from "firebase/database";
+import * as db from "firebase/database";
 import { Buffer } from "buffer";
 import "./index.css";
 
@@ -52,7 +42,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+const database = db.getDatabase(app);
 
 window.addEventListener("load", () => {
   const ydoc = new Y.Doc();
@@ -70,7 +60,7 @@ window.addEventListener("load", () => {
     }
   };
 
-  get(ref(database, "doc")).then((snapshot) => {
+  db.get(db.ref(database, "doc")).then((snapshot) => {
     console.log("first read");
 
     const data = snapshot.val() ?? {};
@@ -89,18 +79,22 @@ window.addEventListener("load", () => {
     // flush database (idea from y-leveldb)
 
     const flushed = Y.encodeStateAsUpdate(ydoc);
-    push(ref(database, "doc"), Buffer.from(flushed).toString("base64"));
+    db.push(db.ref(database, "doc"), Buffer.from(flushed).toString("base64"));
     for (const key of Object.keys(data)) {
-      remove(ref(database, `doc/${key}`));
+      db.remove(db.ref(database, `doc/${key}`));
     }
 
     // listen for new updates
 
     const lastKey = Object.keys(data).pop();
-    onChildAdded(
+    db.onChildAdded(
       lastKey
-        ? query(ref(database, "doc"), orderByKey(), startAfter(lastKey))
-        : ref(database, "doc"),
+        ? db.query(
+            db.ref(database, "doc"),
+            db.orderByKey(),
+            db.startAfter(lastKey)
+          )
+        : db.ref(database, "doc"),
       (snapshot) => {
         console.log("child added");
 
@@ -124,7 +118,7 @@ window.addEventListener("load", () => {
     console.log("update");
 
     const updateBase64 = Buffer.from(update).toString("base64");
-    push(ref(database, "doc"), updateBase64);
+    db.push(db.ref(database, "doc"), updateBase64);
   });
 
   const editor = monaco.editor.create(
