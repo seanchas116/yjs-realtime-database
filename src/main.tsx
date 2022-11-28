@@ -128,32 +128,18 @@ window.addEventListener("load", () => {
 
   // awareness
 
-  awareness.on(
-    "update",
-    ({
-      added,
-      updated,
-      removed,
-    }: {
-      added: number[];
-      updated: number[];
-      removed: number[];
-    }) => {
-      console.log("update awareness");
+  awareness.on("update", ({ updated }: { updated: number[] }) => {
+    console.log("update awareness");
 
-      for (const id of [...added, ...updated]) {
-        const data = encodeAwarenessUpdate(awareness, [id]);
+    if (updated.includes(awareness.clientID)) {
+      const data = encodeAwarenessUpdate(awareness, [awareness.clientID]);
 
-        db.set(
-          db.ref(database, `awareness/${id}`),
-          Buffer.from(data).toString("base64")
-        );
-      }
-      for (const id of removed) {
-        db.remove(db.ref(database, `awareness/${id}`));
-      }
+      db.set(
+        db.ref(database, `awareness/${awareness.clientID}`),
+        Buffer.from(data).toString("base64")
+      );
     }
-  );
+  });
 
   db.onDisconnect(db.ref(database, `awareness/${awareness.clientID}`)).set(
     null
@@ -162,18 +148,21 @@ window.addEventListener("load", () => {
   db.onValue(db.ref(database, "awareness"), (snapshot) => {
     console.log("awareness", snapshot.val());
 
-    const incomingIDs = new Set<number>();
+    const ids = new Set<number>();
 
     for (const [idText, base64] of Object.entries(snapshot.val() ?? {})) {
       const id = parseInt(idText);
+      if (id === awareness.clientID) {
+        continue;
+      }
+
       const data = new Uint8Array(Buffer.from(base64 as string, "base64"));
       applyAwarenessUpdate(awareness, data, id);
-      incomingIDs.add(id);
+      ids.add(id);
     }
 
     for (const id of awareness.getStates().keys()) {
-      if (!incomingIDs.has(id) && id !== awareness.clientID) {
-        console.log("remove", id);
+      if (!ids.has(id) && id !== awareness.clientID) {
         removeAwarenessStates(awareness, [id], id);
       }
     }
