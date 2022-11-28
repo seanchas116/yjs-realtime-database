@@ -49,10 +49,15 @@ export function firebaseProvider({
 
     // flush database (idea from y-leveldb)
 
-    const flushed = Y.encodeStateAsUpdate(ydoc);
-    db.push(db.ref(database, docPath), Buffer.from(flushed).toString("base64"));
-    for (const key of Object.keys(data)) {
-      db.remove(db.ref(database, `${docPath}/${key}`));
+    if (Object.keys(data).length > 1) {
+      const flushed = Y.encodeStateAsUpdate(ydoc);
+      db.push(
+        db.ref(database, docPath),
+        Buffer.from(flushed).toString("base64")
+      );
+      for (const key of Object.keys(data)) {
+        db.remove(db.ref(database, `${docPath}/${key}`));
+      }
     }
 
     // listen for new updates
