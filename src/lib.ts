@@ -102,18 +102,26 @@ export function firebaseProvider({
   if (awareness) {
     const awarenessPath = `${path}/awareness`;
 
-    awareness.on("update", ({ updated }: { updated: number[] }) => {
-      console.log("update awareness");
+    awareness.on(
+      "update",
+      ({ updated, removed }: { updated: number[]; removed: number[] }) => {
+        console.log("update awareness");
 
-      if (updated.includes(awareness.clientID)) {
-        const data = encodeAwarenessUpdate(awareness, [awareness.clientID]);
+        if (updated.includes(awareness.clientID)) {
+          const data = encodeAwarenessUpdate(awareness, [awareness.clientID]);
 
-        db.set(
-          db.ref(database, `${awarenessPath}/${awareness.clientID}`),
-          Buffer.from(data).toString("base64")
-        );
+          db.set(
+            db.ref(database, `${awarenessPath}/${awareness.clientID}`),
+            Buffer.from(data).toString("base64")
+          );
+        }
+
+        // timed out clients
+        for (const clientID of removed) {
+          db.remove(db.ref(database, `${awarenessPath}/${clientID}`));
+        }
       }
-    });
+    );
 
     db.onDisconnect(
       db.ref(database, `${awarenessPath}/${awareness.clientID}`)
