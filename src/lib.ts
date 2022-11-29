@@ -8,6 +8,14 @@ import {
 } from "y-protocols/awareness";
 import { Buffer } from "buffer";
 
+function toBase64(update: Uint8Array): string {
+  return Buffer.from(update).toString("base64");
+}
+
+function fromBase64(base64str: string): Uint8Array {
+  return new Uint8Array(Buffer.from(base64str, "base64"));
+}
+
 export function firebaseProvider({
   ydoc,
   database,
@@ -34,14 +42,12 @@ export function firebaseProvider({
   db.get(db.ref(database, docPath)).then((snapshot) => {
     console.log("first read");
 
-    const data = snapshot.val() ?? {};
+    const data: Record<string, string> = snapshot.val() ?? {};
 
     remoteUpdate(() => {
       ydoc.transact(() => {
         for (const updateBase64 of Object.values(data)) {
-          const update = new Uint8Array(
-            Buffer.from(updateBase64 as string, "base64")
-          );
+          const update = fromBase64(updateBase64);
           Y.applyUpdate(ydoc, update);
         }
       });
@@ -51,10 +57,7 @@ export function firebaseProvider({
 
     if (Object.keys(data).length > 1) {
       const flushed = Y.encodeStateAsUpdate(ydoc);
-      db.push(
-        db.ref(database, docPath),
-        Buffer.from(flushed).toString("base64")
-      );
+      db.push(db.ref(database, docPath), toBase64(flushed));
       for (const key of Object.keys(data)) {
         db.remove(db.ref(database, `${docPath}/${key}`));
       }
@@ -74,9 +77,7 @@ export function firebaseProvider({
       (snapshot) => {
         console.log("child added");
 
-        const update = new Uint8Array(
-          Buffer.from(snapshot.val() as string, "base64")
-        );
+        const update = fromBase64(snapshot.val());
 
         remoteUpdate(() => {
           Y.applyUpdate(ydoc, update);
@@ -92,9 +93,7 @@ export function firebaseProvider({
     // only send local updates
 
     console.log("update");
-
-    const updateBase64 = Buffer.from(update).toString("base64");
-    db.push(db.ref(database, docPath), updateBase64);
+    db.push(db.ref(database, docPath), toBase64(update));
   });
 
   // awareness
@@ -112,7 +111,7 @@ export function firebaseProvider({
 
           db.set(
             db.ref(database, `${awarenessPath}/${awareness.clientID}`),
-            Buffer.from(data).toString("base64")
+            toBase64(data)
           );
         }
 
@@ -138,7 +137,7 @@ export function firebaseProvider({
           continue;
         }
 
-        const data = new Uint8Array(Buffer.from(base64 as string, "base64"));
+        const data = fromBase64(base64 as string);
         applyAwarenessUpdate(awareness, data, id);
         ids.add(id);
       }
